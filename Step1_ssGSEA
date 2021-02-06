@@ -1,1 +1,773 @@
 
+
+
+# =================================================================
+#   
+#   
+# 
+#   
+#   
+# =================================================================
+
+
+
+
+setwd('D:\\SCIwork\\F25\\step1\\GSE15641')
+
+rm(list=ls())
+
+
+##加载包
+{
+  library(genefilter)
+  library(GSVA)
+  library(Biobase)
+  library(stringr)
+}
+
+
+exprSet <- read.csv('exprSet.csv', header = T, row.names = 1)
+
+
+
+gene_set<-read.csv("mmc3.csv")[, 1:2]
+
+head(gene_set)
+
+list<- split(as.matrix(gene_set)[,1], gene_set[,2])
+
+gsva_matrix<- gsva(as.matrix(exprSet),
+                   list,method='ssgsea',
+                   kcdf='Gaussian',
+                   abs.ranking=TRUE)
+
+library(pheatmap)
+
+gsva_matrix1<- t(scale(t(gsva_matrix)))
+
+gsva_matrix1[gsva_matrix1< -2] <- -2
+
+gsva_matrix1[gsva_matrix1>2] <- 2
+
+celltype1 <- c('Activated CD4 T cell', 
+               'Activated CD8 T cell',
+               'Activated B cell',
+               'Central memory CD4 T cell',
+               'Central memory CD8 T cell', 
+               'Effector memeory CD4 T cell',
+               'Effector memeory CD8 T cell', 
+               'Type 1 T helper cell', 
+               'Type 17 T helper cell',
+               "Gamma delta T cell" ,
+               "Memory B cell" ,
+               "Immature  B cell" ,
+               'Activated dendritic cell',
+               'CD56bright natural killer cell', 
+               'Natural killer cell', 
+               'Natural killer T cell')
+
+celltype2 <- c('Regulatory T cell', 
+               'Type 2 T helper cell',
+               "Mast cell",
+               "Monocyte" ,
+               "T follicular helper cell",
+               'CD56dim natural killer cell',
+               'Immature dendritic cell',
+               'Macrophage', 'MDSC',
+               'Neutrophil',"Eosinophil" ,
+               'Plasmacytoid dendritic cell')
+
+type1 <- gsub('^ ','',rownames(gsva_matrix1))%in%celltype1
+
+type2 <- gsub('^ ','',rownames(gsva_matrix1))%in%celltype2
+
+non <- !(type1|type2)
+
+gsva_matrix1<- rbind(gsva_matrix1[type1,],
+                     gsva_matrix1[type2,])
+
+normalization<-function(x){
+  return((x-min(x))/(max(x)-min(x)))}
+
+
+nor_gsva_matrix1 <-  as.data.frame( normalization(gsva_matrix1))
+
+
+write.csv(nor_gsva_matrix1, file = 'ssGSE15641.csv')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# =================================================================
+#   
+#   
+# 
+#   
+#   
+# =================================================================
+
+
+
+
+setwd('D:\\SCIwork\\F25\\step1\\GSE36895')
+
+rm(list=ls())
+
+
+##加载包
+{
+  library(genefilter)
+  library(GSVA)
+  library(Biobase)
+  library(stringr)
+}
+
+
+exprSet <- read.csv('exprSet.csv', header = T, row.names = 1)
+
+
+
+gene_set<-read.csv("mmc3.csv")[, 1:2]
+
+head(gene_set)
+
+list<- split(as.matrix(gene_set)[,1], gene_set[,2])
+
+gsva_matrix<- gsva(as.matrix(exprSet),
+                   list,method='ssgsea',
+                   kcdf='Gaussian',
+                   abs.ranking=TRUE)
+
+library(pheatmap)
+
+gsva_matrix1<- t(scale(t(gsva_matrix)))
+
+gsva_matrix1[gsva_matrix1< -2] <- -2
+
+gsva_matrix1[gsva_matrix1>2] <- 2
+
+celltype1 <- c('Activated CD4 T cell', 
+               'Activated CD8 T cell',
+               'Activated B cell',
+               'Central memory CD4 T cell',
+               'Central memory CD8 T cell', 
+               'Effector memeory CD4 T cell',
+               'Effector memeory CD8 T cell', 
+               'Type 1 T helper cell', 
+               'Type 17 T helper cell',
+               "Gamma delta T cell" ,
+               "Memory B cell" ,
+               "Immature  B cell" ,
+               'Activated dendritic cell',
+               'CD56bright natural killer cell', 
+               'Natural killer cell', 
+               'Natural killer T cell')
+
+celltype2 <- c('Regulatory T cell', 
+               'Type 2 T helper cell',
+               "Mast cell",
+               "Monocyte" ,
+               "T follicular helper cell",
+               'CD56dim natural killer cell',
+               'Immature dendritic cell',
+               'Macrophage', 'MDSC',
+               'Neutrophil',"Eosinophil" ,
+               'Plasmacytoid dendritic cell')
+
+type1 <- gsub('^ ','',rownames(gsva_matrix1))%in%celltype1
+
+type2 <- gsub('^ ','',rownames(gsva_matrix1))%in%celltype2
+
+non <- !(type1|type2)
+
+gsva_matrix1<- rbind(gsva_matrix1[type1,],
+                     gsva_matrix1[type2,])
+
+normalization<-function(x){
+  return((x-min(x))/(max(x)-min(x)))}
+
+
+nor_gsva_matrix1 <-  as.data.frame( normalization(gsva_matrix1))
+
+
+write.csv(nor_gsva_matrix1, file = 'ssGSE36895.csv')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# =================================================================
+#   
+#   
+# 
+#   
+#   
+# =================================================================
+
+
+
+
+setwd('D:\\SCIwork\\F25\\step1\\GSE40435')
+
+rm(list=ls())
+
+
+##加载包
+{
+  library(genefilter)
+  library(GSVA)
+  library(Biobase)
+  library(stringr)
+}
+
+
+exprSet <- read.csv('exprSet.csv', header = T, row.names = 1)
+
+
+
+gene_set<-read.csv("mmc3.csv")[, 1:2]
+
+head(gene_set)
+
+list<- split(as.matrix(gene_set)[,1], gene_set[,2])
+
+gsva_matrix<- gsva(as.matrix(exprSet),
+                   list,method='ssgsea',
+                   kcdf='Gaussian',
+                   abs.ranking=TRUE)
+
+library(pheatmap)
+
+gsva_matrix1<- t(scale(t(gsva_matrix)))
+
+gsva_matrix1[gsva_matrix1< -2] <- -2
+
+gsva_matrix1[gsva_matrix1>2] <- 2
+
+celltype1 <- c('Activated CD4 T cell', 
+               'Activated CD8 T cell',
+               'Activated B cell',
+               'Central memory CD4 T cell',
+               'Central memory CD8 T cell', 
+               'Effector memeory CD4 T cell',
+               'Effector memeory CD8 T cell', 
+               'Type 1 T helper cell', 
+               'Type 17 T helper cell',
+               "Gamma delta T cell" ,
+               "Memory B cell" ,
+               "Immature  B cell" ,
+               'Activated dendritic cell',
+               'CD56bright natural killer cell', 
+               'Natural killer cell', 
+               'Natural killer T cell')
+
+celltype2 <- c('Regulatory T cell', 
+               'Type 2 T helper cell',
+               "Mast cell",
+               "Monocyte" ,
+               "T follicular helper cell",
+               'CD56dim natural killer cell',
+               'Immature dendritic cell',
+               'Macrophage', 'MDSC',
+               'Neutrophil',"Eosinophil" ,
+               'Plasmacytoid dendritic cell')
+
+type1 <- gsub('^ ','',rownames(gsva_matrix1))%in%celltype1
+
+type2 <- gsub('^ ','',rownames(gsva_matrix1))%in%celltype2
+
+non <- !(type1|type2)
+
+gsva_matrix1<- rbind(gsva_matrix1[type1,],
+                     gsva_matrix1[type2,])
+
+normalization<-function(x){
+  return((x-min(x))/(max(x)-min(x)))}
+
+
+nor_gsva_matrix1 <-  as.data.frame( normalization(gsva_matrix1))
+
+
+write.csv(nor_gsva_matrix1, file = 'ssGSE40435.csv')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# =================================================================
+#   
+#   
+# 
+#   
+#   
+# =================================================================
+
+
+
+
+setwd('D:\\SCIwork\\F25\\step1\\GSE46699')
+
+rm(list=ls())
+
+
+##加载包
+{
+  library(genefilter)
+  library(GSVA)
+  library(Biobase)
+  library(stringr)
+}
+
+
+exprSet <- read.csv('exprSet.csv', header = T, row.names = 1)
+
+
+
+gene_set<-read.csv("mmc3.csv")[, 1:2]
+
+head(gene_set)
+
+list<- split(as.matrix(gene_set)[,1], gene_set[,2])
+
+gsva_matrix<- gsva(as.matrix(exprSet),
+                   list,method='ssgsea',
+                   kcdf='Gaussian',
+                   abs.ranking=TRUE)
+
+library(pheatmap)
+
+gsva_matrix1<- t(scale(t(gsva_matrix)))
+
+gsva_matrix1[gsva_matrix1< -2] <- -2
+
+gsva_matrix1[gsva_matrix1>2] <- 2
+
+celltype1 <- c('Activated CD4 T cell', 
+               'Activated CD8 T cell',
+               'Activated B cell',
+               'Central memory CD4 T cell',
+               'Central memory CD8 T cell', 
+               'Effector memeory CD4 T cell',
+               'Effector memeory CD8 T cell', 
+               'Type 1 T helper cell', 
+               'Type 17 T helper cell',
+               "Gamma delta T cell" ,
+               "Memory B cell" ,
+               "Immature  B cell" ,
+               'Activated dendritic cell',
+               'CD56bright natural killer cell', 
+               'Natural killer cell', 
+               'Natural killer T cell')
+
+celltype2 <- c('Regulatory T cell', 
+               'Type 2 T helper cell',
+               "Mast cell",
+               "Monocyte" ,
+               "T follicular helper cell",
+               'CD56dim natural killer cell',
+               'Immature dendritic cell',
+               'Macrophage', 'MDSC',
+               'Neutrophil',"Eosinophil" ,
+               'Plasmacytoid dendritic cell')
+
+type1 <- gsub('^ ','',rownames(gsva_matrix1))%in%celltype1
+
+type2 <- gsub('^ ','',rownames(gsva_matrix1))%in%celltype2
+
+non <- !(type1|type2)
+
+gsva_matrix1<- rbind(gsva_matrix1[type1,],
+                     gsva_matrix1[type2,])
+
+normalization<-function(x){
+  return((x-min(x))/(max(x)-min(x)))}
+
+
+nor_gsva_matrix1 <-  as.data.frame( normalization(gsva_matrix1))
+
+
+write.csv(nor_gsva_matrix1, file = 'ssGSE46699.csv')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# =================================================================
+#   
+#   
+# 
+#   
+#   
+# =================================================================
+
+
+
+
+setwd('D:\\SCIwork\\F25\\step1\\GSE53757')
+
+rm(list=ls())
+
+
+##加载包
+{
+  library(genefilter)
+  library(GSVA)
+  library(Biobase)
+  library(stringr)
+}
+
+
+exprSet <- read.csv('exprSet.csv', header = T, row.names = 1)
+
+
+
+gene_set<-read.csv("mmc3.csv")[, 1:2]
+
+head(gene_set)
+
+list<- split(as.matrix(gene_set)[,1], gene_set[,2])
+
+gsva_matrix<- gsva(as.matrix(exprSet),
+                   list,method='ssgsea',
+                   kcdf='Gaussian',
+                   abs.ranking=TRUE)
+
+library(pheatmap)
+
+gsva_matrix1<- t(scale(t(gsva_matrix)))
+
+gsva_matrix1[gsva_matrix1< -2] <- -2
+
+gsva_matrix1[gsva_matrix1>2] <- 2
+
+celltype1 <- c('Activated CD4 T cell', 
+               'Activated CD8 T cell',
+               'Activated B cell',
+               'Central memory CD4 T cell',
+               'Central memory CD8 T cell', 
+               'Effector memeory CD4 T cell',
+               'Effector memeory CD8 T cell', 
+               'Type 1 T helper cell', 
+               'Type 17 T helper cell',
+               "Gamma delta T cell" ,
+               "Memory B cell" ,
+               "Immature  B cell" ,
+               'Activated dendritic cell',
+               'CD56bright natural killer cell', 
+               'Natural killer cell', 
+               'Natural killer T cell')
+
+celltype2 <- c('Regulatory T cell', 
+               'Type 2 T helper cell',
+               "Mast cell",
+               "Monocyte" ,
+               "T follicular helper cell",
+               'CD56dim natural killer cell',
+               'Immature dendritic cell',
+               'Macrophage', 'MDSC',
+               'Neutrophil',"Eosinophil" ,
+               'Plasmacytoid dendritic cell')
+
+type1 <- gsub('^ ','',rownames(gsva_matrix1))%in%celltype1
+
+type2 <- gsub('^ ','',rownames(gsva_matrix1))%in%celltype2
+
+non <- !(type1|type2)
+
+gsva_matrix1<- rbind(gsva_matrix1[type1,],
+                     gsva_matrix1[type2,])
+
+normalization<-function(x){
+  return((x-min(x))/(max(x)-min(x)))}
+
+
+nor_gsva_matrix1 <-  as.data.frame( normalization(gsva_matrix1))
+
+
+write.csv(nor_gsva_matrix1, file = 'ssGSE53757.csv')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# =================================================================
+#   
+#   
+# 
+#   
+#   
+# =================================================================
+
+
+
+
+setwd('D:\\SCIwork\\F25\\step1\\TCGA')
+
+rm(list=ls())
+
+
+##加载包
+{
+  library(genefilter)
+  library(GSVA)
+  library(Biobase)
+  library(stringr)
+}
+
+
+exprSet <- read.csv('mRNA_exprSet.csv', header = T, row.names = 1)
+
+
+
+gene_set<-read.csv("mmc3.csv")[, 1:2]
+
+head(gene_set)
+
+list<- split(as.matrix(gene_set)[,1], gene_set[,2])
+
+gsva_matrix<- gsva(as.matrix(exprSet),
+                   list,method='ssgsea',
+                   kcdf='Gaussian',
+                   abs.ranking=TRUE)
+
+library(pheatmap)
+
+gsva_matrix1<- t(scale(t(gsva_matrix)))
+
+gsva_matrix1[gsva_matrix1< -2] <- -2
+
+gsva_matrix1[gsva_matrix1>2] <- 2
+
+celltype1 <- c('Activated CD4 T cell', 
+               'Activated CD8 T cell',
+               'Activated B cell',
+               'Central memory CD4 T cell',
+               'Central memory CD8 T cell', 
+               'Effector memeory CD4 T cell',
+               'Effector memeory CD8 T cell', 
+               'Type 1 T helper cell', 
+               'Type 17 T helper cell',
+               "Gamma delta T cell" ,
+               "Memory B cell" ,
+               "Immature  B cell" ,
+               'Activated dendritic cell',
+               'CD56bright natural killer cell', 
+               'Natural killer cell', 
+               'Natural killer T cell')
+
+celltype2 <- c('Regulatory T cell', 
+               'Type 2 T helper cell',
+               "Mast cell",
+               "Monocyte" ,
+               "T follicular helper cell",
+               'CD56dim natural killer cell',
+               'Immature dendritic cell',
+               'Macrophage', 'MDSC',
+               'Neutrophil',"Eosinophil" ,
+               'Plasmacytoid dendritic cell')
+
+type1 <- gsub('^ ','',rownames(gsva_matrix1))%in%celltype1
+
+type2 <- gsub('^ ','',rownames(gsva_matrix1))%in%celltype2
+
+non <- !(type1|type2)
+
+gsva_matrix1<- rbind(gsva_matrix1[type1,],
+                     gsva_matrix1[type2,])
+
+normalization<-function(x){
+  return((x-min(x))/(max(x)-min(x)))}
+
+
+nor_gsva_matrix1 <-  as.data.frame( normalization(gsva_matrix1))
+
+
+write.csv(nor_gsva_matrix1, file = 'ssTCGA.csv')
+
+
+
