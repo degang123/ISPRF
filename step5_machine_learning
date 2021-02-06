@@ -1,0 +1,464 @@
+
+#=======================================================
+
+
+#=======================================================
+
+library("caret")
+
+library("mlbench")
+
+library("pROC")
+
+set.seed(1234)
+
+library(randomForest)
+
+library(caret)
+
+library(ROCR)
+
+library(dplyr)
+
+library(tibble)
+
+rm(list=ls())
+
+library(tidyr)
+
+library(tibble)
+
+setwd('D:\\SCIwork\\F25\\ml')
+
+
+group <- read.csv('group1.csv', header = T, row.names = 1)
+
+group$Barcode  <- substr(x=rownames(group), start = 1, stop = 12)
+
+
+
+library(stringr)
+
+load('TCGA.Rdata')
+
+TCGA$Barcode  <- rownames(TCGA) 
+
+
+data <- merge(group, TCGA, by='Barcode')
+
+data[1:5,1:5]
+
+data$Barcode <-NULL
+
+data$subtype <- data$group1
+
+data$group1 <- NULL
+
+data$subtype <- as.factor(as.character(data$subtype ))
+
+data[1:5,1:5]
+
+data$subtype <- paste0('subtype', data$subtype)
+
+
+table(data$subtype)
+
+#=======================================================
+
+
+#=======================================================
+
+
+
+set.seed(1234)
+
+train_y <- createDataPartition(y=data$subtype,
+                             p=0.8,
+                             list=FALSE)
+
+train <- data[train_y, ]  #70%的数据作为训练数据
+
+test <- data[-train_y, ]  #30%的数据作为测试数据
+
+
+objControl <- trainControl(method='cv', 
+                           number=5,
+                           returnResamp='none', 
+                           summaryFunction = twoClassSummary, 
+                           classProbs = TRUE)
+
+
+#=======================================================
+
+
+#=======================================================
+
+
+library(tibble)
+
+
+rf_random <- train(subtype ~ ., 
+                   data=train, 
+                   method="rf", 
+                   metric="ROC",
+                   tuneLength=15,
+                   trControl=objControl)
+
+
+print(rf_random)
+
+rf_random$results %>% 
+  as.tibble %>%  
+  arrange(desc(ROC)) 
+
+
+
+#=======================================================
+
+
+#=======================================================
+
+
+
+setwd('D:\\SCIwork\\F25\\ml')
+
+rf_mtry <- data.frame(mtry = c(2, 3, 4, 
+                               5, 6, 7), 
+                      
+                       ROC = c(0.804, 0.797, 0.798,
+                               0.798, 0.796, 0.796))
+
+
+
+
+
+pdf(file="rf_mtry.pdf",height = 5, width = 5)
+par(oma=c(2,2,1,2),mar=c(5,4,4,2))
+p1 <- ggplot(rf_mtry, aes(x=mtry, y=ROC))+
+  geom_point(size = 3.8,shape=1,color='#7AA6DC',stroke =1.2)
+
+p1 <- p1 +coord_cartesian(ylim=c(0.79, 0.81))
+scale_y_continuous(breaks=seq(0.79, 0.81, 0.005)) 
+
+p1 <- p1+scale_x_continuous(breaks=seq(2, 7, 1))+
+  geom_line(color='#7AA6DC', size=1.2)+
+  theme_bw() + 
+  theme(panel.background = element_rect(colour = "black", 
+                                        size = 1.5))+
+  theme(panel.grid.major  = element_line( size=0.1)) +
+  theme(panel.grid.minor = element_blank())
+
+
+p1 <- p1 + theme(axis.text.x = element_text(size = 16,  
+                                            vjust = 0.5, 
+                                            hjust = 0.5 ))+
+  theme(axis.text.y = element_text(size = 16,  
+                                   vjust = 0.5, 
+                                   hjust = 0.5))+
+  theme(axis.text.y.right = element_text(size = 16,  
+                                         vjust = 0.5, 
+                                         hjust = 0.5))
+
+
+
+p1 <- p1 + xlab("mtry value") + 
+  theme(axis.title.x = element_text(size = 16,
+                                    
+                                    face = "bold", 
+                                    vjust = 0.5, 
+                                    hjust = 0.5))+
+  
+  ylab("AUC")+
+  theme(axis.title.y = element_text(size = 16,
+                                    
+                                    face = "bold", 
+                                    vjust = 0.5, 
+                                    hjust = 0.5))
+
+
+p1
+dev.off()
+
+
+
+
+#=======================================================
+
+
+#=======================================================
+
+
+
+
+store_trees <- list()
+
+tuneGrid <- expand.grid(.mtry=2)
+
+for(ntrees in c(100,300, 500, 700, 900, 1100)){
+  set.seed(1234)
+  rf_ntrees <- train(subtype ~ ., 
+                     data = train,
+                     method = "rf",
+                     metric = "ROC",
+                     tuneGrid =  tuneGrid,
+                     trControl= objControl,  
+                     ntree = ntrees )
+  
+  current_iteration <- toString(ntrees)
+  store_trees[[current_iteration]] <- rf_ntrees 
+}
+
+
+
+
+
+setwd('D:\\SCIwork\\F25\\ml')
+
+rf_ntress <- data.frame(ntree = c(100,300, 500, 
+                                 700, 900, 1100), 
+                      
+                      ROC = c(0.803, 0.804, 0.804,
+                              0.804, 0.803, 0.804))
+
+
+
+
+
+
+
+
+
+pdf(file="rf_ntree.pdf",height = 5, width = 5)
+par(oma=c(2,2,1,2),mar=c(5,4,4,2))
+p1 <- ggplot(rf_ntress, aes(x=ntree, y=ROC))+
+  geom_point(size = 3.8,shape=1,color='#7AA6DC',stroke =1.2)
+
+p1 <- p1 +coord_cartesian(ylim=c(0.802, 0.806))
+scale_y_continuous(breaks=seq(0.802, 0.806, 0.002)) 
+
+p1 <- p1+scale_x_continuous(breaks=seq(100, 1100, 200))+
+  geom_line(color='#7AA6DC', size=1.2)+
+  theme_bw() + 
+  theme(panel.background = element_rect(colour = "black", 
+                                        size = 1.5))+
+  theme(panel.grid.major  = element_line( size=0.1)) +
+  theme(panel.grid.minor = element_blank())
+
+
+p1 <- p1 + theme(axis.text.x = element_text(size = 16,  
+                                            vjust = 0.5, 
+                                            hjust = 0.5 ))+
+  theme(axis.text.y = element_text(size = 16,  
+                                   vjust = 0.5, 
+                                   hjust = 0.5))+
+  theme(axis.text.y.right = element_text(size = 16,  
+                                         vjust = 0.5, 
+                                         hjust = 0.5))
+
+
+
+p1 <- p1 + xlab("ntree value") + 
+  theme(axis.title.x = element_text(size = 16,
+                                    
+                                    face = "bold", 
+                                    vjust = 0.5, 
+                                    hjust = 0.5))+
+  
+  ylab("AUC")+
+  theme(axis.title.y = element_text(size = 16,
+                                    
+                                    face = "bold", 
+                                    vjust = 0.5, 
+                                    hjust = 0.5))
+
+
+p1
+dev.off()
+
+
+
+
+#=======================================================
+
+
+#=======================================================
+
+
+tuneGrid <- expand.grid(.mtry=2)
+
+set.seed(1234)
+
+rf_fit  <-    train(subtype ~ ., 
+                    data = train,
+                    method = "rf",
+                    metric = "ROC",
+                    tuneGrid =  tuneGrid,
+                    trControl=objControl,  
+                    ntree = 300)
+
+
+
+
+
+library(pROC)
+
+rocobj <- roc(test$subtype, predict(rf_fit,test,type='prob')[,2])
+
+
+# And change axis labels to FPR/FPR
+p1 <- ggroc(rocobj, legacy.axes = TRUE, color='#7AA6DC') + xlab("FPR") + ylab("TPR") + 
+  geom_segment(aes(x = 0, xend = 1, y = 0, yend = 1), color="darkgrey", linetype="dashed")
+
+
+
+p1 <- p1+ theme_bw() + 
+  theme(panel.background = element_rect(colour = "black", 
+                                        size = 1.5))+
+  theme(panel.grid.major  = element_line( size=0.1)) +
+  theme(panel.grid.minor = element_blank())
+
+
+p1 <- p1 + theme(axis.text.x = element_text(size = 16,  
+                                            vjust = 0.5, 
+                                            hjust = 0.5 ))+
+  theme(axis.text.y = element_text(size = 16,  
+                                   vjust = 0.5, 
+                                   hjust = 0.5))+
+  theme(axis.text.y.right = element_text(size = 16,  
+                                         vjust = 0.5, 
+                                         hjust = 0.5))
+
+
+
+p1 <- p1  + 
+  theme(axis.title.x = element_text(size = 16,
+                                    
+                                    face = "bold", 
+                                    vjust = 0.5, 
+                                    hjust = 0.5))+
+  
+  
+  theme(axis.title.y = element_text(size = 16,
+                                    
+                                    face = "bold", 
+                                    vjust = 0.5, 
+                                    hjust = 0.5))
+
+
+
+p1 <- p1 + annotate('text', x=0.2, y=0.9, label='AUC = 0.78')
+
+
+
+pdf(file="roc_test.pdf",height = 5, width = 5)
+par(oma=c(2,2,1,2),mar=c(5,4,4,2))
+p1
+dev.off()
+
+
+
+
+#=======================================================
+
+
+#=======================================================
+
+load('imvigor.Rdata')
+
+test <- imvigor
+
+# Predict the testing set with the trained model 
+predictions1 <- predict(rf_fit, test )
+
+predictions1  <- as.data.frame(predictions1)
+
+predictions1$sample <- rownames(test)
+
+test <- predictions1 
+
+table(test$predictions1)
+
+names(test) <- c('imtype','id')
+
+pheno <- read.csv('pheno.csv', header = T, row.names = 1)
+
+
+pheno <- pheno %>%
+  dplyr::select("os", "censOS","binaryResponse"  )
+
+
+
+pheno[1:3,1:3]
+
+colnames(pheno) <- c('OS.Time','OS','res_type')
+
+pheno[1:3,1:3]
+
+pheno$id <- rownames(pheno)
+
+im <- merge(pheno, test, by='id')
+
+write.csv(im, file = 'im210_subtype.csv')
+
+
+#=======================================================
+
+
+#=======================================================
+
+im <- read.csv('im210_subtype.csv', header = T)
+
+
+library(survival)
+
+library(survminer)
+
+im <- na.omit(im)
+
+fit <- survfit(Surv(OS.Time, OS) ~imtype, data = im)
+
+
+pdf(file="im210_sur.pdf",height = 4, width = 4)
+
+par(oma=c(2,2,1,2),mar=c(5,4,4,2))
+
+ggsurv <- ggsurvplot(fit, data =im ,
+                     pval = T,
+                     xlim = c(0,24),  
+                     break.time.by = 6,  
+                     xlab = "Time in months",
+                     palette = c("#E41A1C",'#DAA520'))
+
+ggsurv <- ggpar( ggsurv,
+                 font.y  = c(16, "bold"), 
+                 font.x  = c(16, "bold"),
+                 legend = "top",
+                 font.legend = c(16, "bold"))
+
+ggsurv
+
+
+dev.off()
+
+#=======================================================
+
+
+#=======================================================
+
+library(plyr)
+im$number <- 1
+
+data <- ddply(im,'imtype',transform,percent = 1/sum(number)*100)
+p <- ggplot(data,aes(imtype,percent,fill=res_type))+
+  geom_bar(stat="identity",position="stack")+
+  ggtitle("")+
+  theme_bw()+
+  theme(axis.ticks.length=unit(0.5,'cm'))+
+  guides(fill=guide_legend(title=NULL))
+
+pdf(file = 'im210_response.pdf', height = 4, width = 4)
+p
+dev.off()
+
+
+
