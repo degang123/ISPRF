@@ -1,0 +1,630 @@
+# ===============================================================
+
+#load  package
+
+
+# if (!requireNamespace("BiocManager", quietly = TRUE))
+#   install.packages("BiocManager")
+# 
+# BiocManager::install("ConsensusClusterPlus")
+# 
+
+library(ConsensusClusterPlus)
+# ===============================================================
+
+require(dplyr)
+require(tidyr)
+rm(list=ls())
+setwd('D:\\SCIwork\\F25\\step2')
+
+
+
+d1 <- read.csv('ssGSE15641.csv', header = T, sep = ',', row.names = 1)
+d1 <- as.data.frame(t(d1))
+ 
+
+d2 <- read.csv('ssGSE36895.csv', header = T, sep = ',', row.names = 1)
+d2 <-  as.data.frame(t(d2))
+
+
+d3 <- read.csv('ssGSE40435.csv', header = T, sep = ',', row.names = 1)
+d3 <-  as.data.frame(t(d3))
+
+
+d4 <- read.csv('ssGSE46699.csv', header = T, sep = ',', row.names = 1)
+d4 <-  as.data.frame(t(d4))
+
+
+d5 <- read.csv('ssGSE53757.csv', header = T, sep = ',', row.names = 1)
+d5 <-  as.data.frame(t(d5))
+
+
+d6 <- read.csv('ssTCGA.csv', header = T, sep = ',', row.names = 1)
+d6 <-  as.data.frame(t(d6))
+
+
+
+data2 <- rbind(d1, d2, d3, d4, d5, d6)
+
+data2[is.na(data2)] <- 0
+
+data2$profile <- rownames(data2)
+
+data2$profile <- chartr(old='.', new = '-', x=data2$profile)
+
+# data <- merge(data1, data2, by='profile')
+
+data <- data2
+
+rownames(data) <- data$profile
+
+data$profile <- NULL
+
+data <- scale(data, center = T, scale = T)
+# ===============================================================
+
+#load  package
+
+# ===============================================================
+
+library("CancerSubtypes")
+
+
+GeneExp <- as.matrix(t(data))
+
+result=ExecuteCC(clusterNum=2,
+                 d=GeneExp,maxK=6,
+                 clusterAlg="hc",
+                 distance="pearson",
+                 title="GBM",
+                 plot = "pdf")
+
+
+
+
+group1=result$group
+
+group1 <- as.data.frame(group1)
+
+table(group1$group1)
+
+
+write.csv(group1, file = 'group1.csv')
+
+
+
+# ===============================================================
+
+#load  package
+
+# ===============================================================
+
+
+library(dplyr)
+library(survival)
+library(survminer)
+require(dplyr)
+require(tidyr)
+rm(list=ls())
+
+
+
+cluster <- read.csv('group1.csv', header = T)
+
+names(cluster) <- c( 'Barcode',
+                     'cluster2')
+
+
+cluster$Barcode <- substr(x=cluster$Barcode, start = 1, stop = 12)
+
+sur <- read.csv('immune_info.csv', header = T)
+
+sur <- subset(sur, sur$TCGA.Study == 'KIRC')
+
+sur <- sur %>%
+  
+  dplyr::select("TCGA.Participant.Barcode", 
+                "OS" ,
+                "OS.Time"      )
+
+names(sur)[1] <- 'Barcode'
+
+sur$Barcode
+
+
+cluster$Barcode
+
+
+
+data <- merge(sur, cluster, by='Barcode')
+
+
+# ===============================================================
+#plot survival figure
+# ===============================================================
+
+dt_OS <-  data %>%
+  dplyr::select(OS,OS.Time,"cluster2")
+
+names(dt_OS)[3] <- 'Subtype'
+
+dt_OS <- na.omit(dt_OS)
+
+dt_OS$OS.Time <- dt_OS$OS.Time/365
+
+dt_OS$Subtype <- as.factor(as.character(dt_OS$Subtype))
+
+# dt_OS$Subtype <- ifelse(dt_OS$Subtype == '1', 'Type1', 'Type2')
+
+
+fit <- survfit(Surv(OS.Time,OS)~Subtype,data=dt_OS)
+
+
+getwd()
+pdf("subtype_os.pdf",height = 8,width = 8)
+ggsurvplot(
+  fit,   data = dt_OS,   
+  pval = TRUE,           
+  conf.int = TRUE, 
+  # legend.title = "ERBB2",
+  xlim = c(0,5),  
+  xlab = "Time in years",  
+  break.time.by = 1,  
+  pval.size = 8,
+  risk.table = "absolute", 
+  risk.table.y.text.col = T,
+  risk.table.y.text = FALSE,
+  risk.table.fontsize = 5,
+  # legend.labs =  c("Type1", "Type2"),   
+  # palette = c("#E41A1C","#377EB8"),
+  font.y  = c(16, "bold"), 
+  font.x  = c(16, "bold"),
+  legend = "top",
+  font.legend = c(16, "bold"))
+dev.off()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ===============================================================
+
+#load  package
+
+# ===============================================================
+
+
+library(dplyr)
+library(survival)
+library(survminer)
+require(dplyr)
+require(tidyr)
+rm(list=ls())
+
+setwd('D:\\SCIwork\\F25\\step2')
+
+cluster <- read.csv('group1.csv', header = T)
+
+names(cluster) <- c( 'Barcode',
+                     'cluster2')
+
+
+cluster$Barcode <- substr(x=cluster$Barcode, start = 1, stop = 12)
+
+sur <- read.csv('immune_info.csv', header = T)
+
+sur <- subset(sur, sur$TCGA.Study == 'KIRC')
+
+sur <- sur %>%
+  
+  dplyr::select("TCGA.Participant.Barcode", 
+                "OS" ,
+                "OS.Time"      )
+
+names(sur)[1] <- 'Barcode'
+
+sur$Barcode
+
+
+cluster$Barcode
+
+
+
+data <- merge(sur, cluster, by='Barcode')
+
+
+# ===============================================================
+#plot survival figure
+# ===============================================================
+
+dt_OS <-  data %>%
+  dplyr::select(OS,OS.Time,"cluster2")
+
+names(dt_OS)[3] <- 'Subtype'
+
+dt_OS <- na.omit(dt_OS)
+
+dt_OS$OS.Time <- dt_OS$OS.Time/365
+
+dt_OS$Subtype <- as.factor(as.character(dt_OS$Subtype))
+
+# dt_OS$Subtype <- ifelse(dt_OS$Subtype == '1', 'Type1', 'Type2')
+
+
+fit <- survfit(Surv(OS.Time,OS)~Subtype,data=dt_OS)
+
+
+getwd()
+pdf("subtype_os.pdf",height = 4,width = 4)
+ggsurvplot(
+  fit,   data = dt_OS,   
+  pval = TRUE,           
+  conf.int = F, 
+  xlim = c(0,5),  
+  xlab = "Time in years",  
+  break.time.by = 1,  
+  pval.size = 8,
+  # risk.table = "absolute", 
+  # risk.table.y.text.col = T,
+  # risk.table.y.text = FALSE,
+  # risk.table.fontsize = 5,
+  # legend.labs =  c("Type1", "Type2"),   
+  palette = c("#E41A1C","#377EB8"),
+  font.y  = c(16, "bold"), 
+  font.x  = c(16, "bold"),
+  legend = "top",
+  font.legend = c(16, "bold"))
+dev.off()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ===============================================================
+
+#load  package
+
+# ===============================================================
+
+
+library(dplyr)
+library(survival)
+library(survminer)
+require(dplyr)
+require(tidyr)
+rm(list=ls())
+
+setwd('D:\\SCIwork\\F25\\step2')
+
+cluster <- read.csv('group1.csv', header = T)
+
+names(cluster) <- c( 'Barcode',
+                     'cluster2')
+
+
+cluster$Barcode <- substr(x=cluster$Barcode, start = 1, stop = 12)
+
+sur <- read.csv('immune_info.csv', header = T)
+
+sur <- subset(sur, sur$TCGA.Study == 'KIRC')
+
+sur <- sur %>%
+  
+  dplyr::select("TCGA.Participant.Barcode", 
+                "PFI"  ,
+                "PFI.Time"       )
+
+names(sur)[1] <- 'Barcode'
+
+sur$Barcode
+
+
+cluster$Barcode
+
+
+
+data <- merge(sur, cluster, by='Barcode')
+
+
+# ===============================================================
+#plot survival figure
+# ===============================================================
+
+dt_OS <-  data %>%
+  dplyr::select(PFI, PFI.Time,"cluster2")
+
+names(dt_OS)[3] <- 'Subtype'
+
+dt_OS <- na.omit(dt_OS)
+
+dt_OS$PFI.Time <- dt_OS$PFI.Time/365
+
+dt_OS$Subtype <- as.factor(as.character(dt_OS$Subtype))
+
+# dt_OS$Subtype <- ifelse(dt_OS$Subtype == '1', 'Type1', 'Type2')
+
+
+fit <- survfit(Surv(PFI.Time, PFI)~Subtype,data=dt_OS)
+
+
+getwd()
+pdf("subtype_PFI.pdf",height = 4,width = 4)
+ggsurvplot(
+  fit,   data = dt_OS,   
+  pval = TRUE,           
+  conf.int = F, 
+  xlim = c(0,5),  
+  xlab = "Time in years",  
+  break.time.by = 1,  
+  pval.size = 8,
+  # risk.table = "absolute", 
+  # risk.table.y.text.col = T,
+  # risk.table.y.text = FALSE,
+  # risk.table.fontsize = 5,
+  # legend.labs =  c("Type1", "Type2"),   
+  palette = c("#E41A1C","#377EB8"),
+  font.y  = c(16, "bold"), 
+  font.x  = c(16, "bold"),
+  legend = "top",
+  font.legend = c(16, "bold"))
+dev.off()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ===============================================================
+
+#load  package
+
+# ===============================================================
+
+
+library(dplyr)
+library(survival)
+library(survminer)
+require(dplyr)
+require(tidyr)
+rm(list=ls())
+
+setwd('D:\\SCIwork\\F25\\step2')
+
+cluster <- read.csv('group1.csv', header = T)
+
+names(cluster) <- c( 'Barcode',
+                     'cluster2')
+
+
+cluster$Barcode <- substr(x=cluster$Barcode, start = 1, stop = 12)
+
+sur <- read.csv('immune_info.csv', header = T)
+
+sur <- subset(sur, sur$TCGA.Study == 'KIRC')
+
+sur <- sur %>%
+  
+  dplyr::select("TCGA.Participant.Barcode", 
+                "OS" ,
+                "OS.Time"      )
+
+names(sur)[1] <- 'Barcode'
+
+sur$Barcode
+
+
+cluster$Barcode
+
+
+
+data <- merge(sur, cluster, by='Barcode')
+
+
+# ===============================================================
+#plot survival figure
+# ===============================================================
+
+dt_OS <-  data %>%
+  dplyr::select(OS,OS.Time,"cluster2")
+
+names(dt_OS)[3] <- 'Subtype'
+
+dt_OS <- na.omit(dt_OS)
+
+dt_OS$OS.Time <- dt_OS$OS.Time/365
+
+dt_OS$Subtype <- as.factor(as.character(dt_OS$Subtype))
+
+# dt_OS$Subtype <- ifelse(dt_OS$Subtype == '1', 'Type1', 'Type2')
+
+
+fit <- survfit(Surv(OS.Time,OS)~Subtype,data=dt_OS)
+
+
+getwd()
+pdf("subtype_os.pdf",height = 4,width = 4)
+ggsurvplot(
+  fit,   data = dt_OS,   
+  pval = TRUE,           
+  conf.int = F, 
+  xlim = c(0,5),  
+  xlab = "Time in years",  
+  break.time.by = 1,  
+  pval.size = 8,
+  # risk.table = "absolute", 
+  # risk.table.y.text.col = T,
+  # risk.table.y.text = FALSE,
+  # risk.table.fontsize = 5,
+  # legend.labs =  c("Type1", "Type2"),   
+  palette = c("#E41A1C","#377EB8"),
+  font.y  = c(16, "bold"), 
+  font.x  = c(16, "bold"),
+  legend = "top",
+  font.legend = c(16, "bold"))
+dev.off()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ===============================================================
+
+#load  package
+
+# ===============================================================
+
+
+library(dplyr)
+library(survival)
+library(survminer)
+require(dplyr)
+require(tidyr)
+rm(list=ls())
+
+setwd('D:\\SCIwork\\F25\\step2')
+
+cluster <- read.csv('group1.csv', header = T)
+
+names(cluster) <- c( 'Barcode',
+                     'cluster2')
+
+
+cluster$Barcode <- substr(x=cluster$Barcode, start = 1, stop = 12)
+
+sur <- read.csv('immune_info.csv', header = T)
+
+sur <- subset(sur, sur$TCGA.Study == 'KIRC')
+
+sur <- sur %>%
+  
+  dplyr::select("TCGA.Participant.Barcode", 
+                "PFI"  ,
+                "PFI.Time"       )
+
+names(sur)[1] <- 'Barcode'
+
+sur$Barcode
+
+
+cluster$Barcode
+
+
+
+data <- merge(sur, cluster, by='Barcode')
+
+
+# ===============================================================
+#plot survival figure
+# ===============================================================
+
+dt_OS <-  data %>%
+  dplyr::select(PFI, PFI.Time,"cluster2")
+
+names(dt_OS)[3] <- 'Subtype'
+
+dt_OS <- na.omit(dt_OS)
+
+dt_OS$PFI.Time <- dt_OS$PFI.Time/365
+
+dt_OS$Subtype <- as.factor(as.character(dt_OS$Subtype))
+
+# dt_OS$Subtype <- ifelse(dt_OS$Subtype == '1', 'Type1', 'Type2')
+
+
+fit <- survfit(Surv(PFI.Time, PFI)~Subtype,data=dt_OS)
+
+
+getwd()
+pdf("subtype_PFI.pdf",height = 4,width = 4)
+ggsurvplot(
+  fit,   data = dt_OS,   
+  pval = TRUE,           
+  conf.int = F, 
+  xlim = c(0,5),  
+  xlab = "Time in years",  
+  break.time.by = 1,  
+  pval.size = 8,
+  # risk.table = "absolute", 
+  # risk.table.y.text.col = T,
+  # risk.table.y.text = FALSE,
+  # risk.table.fontsize = 5,
+  # legend.labs =  c("Type1", "Type2"),   
+  palette = c("#E41A1C","#377EB8"),
+  font.y  = c(16, "bold"), 
+  font.x  = c(16, "bold"),
+  legend = "top",
+  font.legend = c(16, "bold"))
+dev.off()
+
+
+
+
+
+
+
+
+
+
+
+
