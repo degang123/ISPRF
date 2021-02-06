@@ -1,0 +1,801 @@
+#=======================================================
+
+
+#=======================================================
+
+
+rm(list=ls())
+
+library(tidyverse)
+
+setwd('D:\\SCIwork\\F25\\step5')
+
+options(stringsAsFactors = F)
+
+library(dplyr)
+
+library(tibble)
+
+mRNA_exprSet <- read.csv('mRNA_exprSet.csv', header = T, row.names = 1)
+
+mRNA_exprSet[1:4,1:4]
+
+mRNA_exprSet  <- log2(mRNA_exprSet +1)
+
+
+#=======================================================
+
+
+mRNA_exprSet[1:3,1:3]
+
+data  <- as.data.frame(t(mRNA_exprSet))
+
+data$Barcode <- row.names(data)
+
+data$Barcode <- substr(x=rownames(data), 
+                       start = 1, stop = 12)
+
+data$Barcode <- chartr(old='.', new = '-', x=data$Barcode )
+
+rownames(data) <- data$Barcode
+
+data$Barcode <- NULL
+
+data[1:4,1:4]
+
+
+#=======================================================
+
+
+gene <- read.csv('diffSig.csv', header = T, row.names = 1)
+
+sig_genes <- rownames(gene)
+
+library(tibble)
+
+data <- data[,which(colnames(data) %in% sig_genes)]
+
+
+#=======================================================
+
+
+setwd('D:\\SCIwork\\F25\\step5')
+
+survival_data <- read.csv('KIRC_survival.csv', header = T, row.names = 1)
+
+
+survival_data <- subset(survival_data, select = c('Barcode', 'Gender', 'OS', 
+                                                  'OS.Time', 'Age',  'Grade', 'Stage'))
+
+
+
+cluster <- read.csv('group1.csv', header = T)
+
+names(cluster) <- c( 'Barcode',
+                     'Subtype')
+cluster$Barcode <- substr(x=cluster$Barcode, 
+                       start = 1, stop = 12)
+
+
+survival_data <- merge(survival_data, cluster, by='Barcode')
+
+
+
+survival_data  <- survival_data[which(survival_data$Barcode %in% rownames(data)),]
+
+survival_data <- survival_data %>%
+  distinct(Barcode,.keep_all = T)
+
+table(survival_data$Stage)
+
+survival_data$Stage <- ifelse(survival_data$Stage == 'Stage I', 1, survival_data$Stage)
+survival_data$Stage <- ifelse(survival_data$Stage == 'Stage II', 2, survival_data$Stage)
+survival_data$Stage <- ifelse(survival_data$Stage == 'Stage III', 3, survival_data$Stage)
+survival_data$Stage <- ifelse(survival_data$Stage == 'Stage IV', 4, survival_data$Stage)
+survival_data$Stage <- ifelse(survival_data$Stage == '', 1, survival_data$Stage)
+
+
+survival_data$Stage <- as.numeric(as.character(survival_data$Stage))
+
+
+#=======================================================
+
+
+table(survival_data$Grade)
+
+survival_data$Grade <- ifelse(survival_data$Grade == 'G1', 1, survival_data$Grade)
+survival_data$Grade <- ifelse(survival_data$Grade == 'G2', 2, survival_data$Grade)
+survival_data$Grade <- ifelse(survival_data$Grade == 'G3', 3, survival_data$Grade)
+survival_data$Grade <- ifelse(survival_data$Grade == 'G4', 4, survival_data$Grade)
+
+survival_data$Grade <- ifelse(survival_data$Grade == '', 1, survival_data$Grade)
+survival_data$Grade <- ifelse(survival_data$Grade == 'GX', 1, survival_data$Grade)
+
+table(survival_data$Grade)
+survival_data$Grade <- as.numeric(as.character(survival_data$Grade))
+
+
+#=======================================================
+
+
+table(survival_data$Gender)
+
+survival_data$Gender <- ifelse(survival_data$Gender == 'MALE', 0, 1)
+
+table(survival_data$Gender)
+
+survival_data[is.na(survival_data)] <- 0
+
+str(survival_data)
+
+data$Barcode <- rownames(data)
+
+data <- merge(survival_data, data, by='Barcode')
+
+data$Barcode <- substr(data$Barcode, start = 9, stop = 12)
+
+write.csv(survival_data, file = 'survival_KIRC.csv')
+
+
+# =======================================================
+
+
+
+
+####  读取数据    #######################################
+
+
+
+
+# =======================================================
+
+
+library(WGCNA)
+
+library(dplyr)
+
+library(tidyr)
+
+library(tidyverse)
+
+
+# #挑选mad前1000的基因
+# genes <- data_wgcna[,order( apply(data_wgcna ,2,mad), decreasing = T)[1:1000]]
+data$OS.Time <- NULL
+
+dataExpr <- data %>% 
+  column_to_rownames(var = 'Barcode') %>%
+  select(-c('Age',  'Stage',  "OS" , "Gender",   "Grade", 'Subtype'))
+
+
+# =======================================================
+####检测缺失值#########################################
+# =======================================================
+
+## 检测缺失值
+gsg = goodSamplesGenes(dataExpr, verbose = 3)
+
+##  Flagging genes and samples with too many missing values...
+##   ..step 1
+
+if (!gsg$allOK){
+  # Optionally, print the gene and sample names that were removed:
+  if (sum(!gsg$goodGenes)>0) 
+    printFlush(paste("Removing genes:", 
+                     paste(names(dataExpr)[!gsg$goodGenes], collapse = ",")));
+  if (sum(!gsg$goodSamples)>0) 
+    printFlush(paste("Removing samples:", 
+                     paste(rownames(dataExpr)[!gsg$goodSamples], collapse = ",")));
+  # Remove the offending genes and samples from the data:
+  dataExpr = dataExpr[gsg$goodSamples, gsg$goodGenes]
+}
+
+nGenes = ncol(dataExpr)
+nSamples = nrow(dataExpr)
+
+dim(dataExpr)
+
+head(dataExpr)[,1:8]
+
+
+# =======================================================
+####查看是否有离群样品###################################
+# =======================================================
+## 查看是否有离群样品
+
+sampleTree = hclust(dist(dataExpr), method = "average")
+# Plot the sample tree: Open a graphic output window of size 12 by 9 inches
+# The user should change the dimensions if the window is too large or too small.
+sizeGrWindow(12,9)
+#pdf(file = "Plots/sampleClustering.pdf", width = 12, height = 9);
+par(cex = 0.6);
+par(mar = c(0,4,2,0))
+plot(sampleTree, main = "Sample clustering to detect outliers", sub="", xlab="", cex.lab = 1.5, 
+     cex.axis = 1.5, cex.main = 2)
+
+
+# =======================================================
+####删除离群样品#########################################
+# =======================================================
+
+# Plot a line to show the cut
+abline(h = 80, col = "red");
+# Determine cluster under the line
+clust = cutreeStatic(sampleTree, cutHeight = 80, minSize = 10)
+table(clust)
+# clust 1 contains the samples we want to keep.
+keepSamples = (clust==1)
+
+dataExpr = dataExpr[keepSamples, ]
+nGenes = ncol(dataExpr)
+nSamples = nrow(dataExpr)
+
+datTraits <-  data %>% 
+  column_to_rownames(var = 'Barcode') %>%
+  select('Age',  'Stage',  "OS" , "Gender",   "Grade",  'Subtype')
+
+head(datTraits)
+
+Samples = rownames(dataExpr)
+
+traitRows = match(Samples, rownames(datTraits))
+
+datTraits = datTraits[traitRows,]
+
+collectGarbage();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# =======================================================
+####选定合适的power值####################################
+# =======================================================
+
+# Choose a set of soft-thresholding powers
+powers = c(c(1:10), seq(from = 12, to=20, by=2))
+# Call the network topology analysis function
+sft = pickSoftThreshold(dataExpr, powerVector = powers, verbose = 5)
+# Plot the results:
+par(mfrow = c(1,2));
+cex1 = 0.9;
+# Scale-free topology fit index as a function of the soft-thresholding power
+pdf(file = '1.pdf', height =6, width =6)
+plot(sft$fitIndices[,1], -sign(sft$fitIndices[,3])*sft$fitIndices[,2],
+     xlab="Soft Threshold (power)",ylab="Scale Free Topology Model Fit,signed R^2",type="n",
+     main = paste("Scale independence"));
+text(sft$fitIndices[,1], -sign(sft$fitIndices[,3])*sft$fitIndices[,2],
+     labels=powers,cex=cex1,col="red");
+# this line corresponds to using an R^2 cut-off of h
+abline(h=0.90,col="green")
+# Mean connectivity as a function of the soft-thresholding power
+dev.off()
+
+
+
+
+pdf(file = '2.pdf', height = 6, width =6)
+plot(sft$fitIndices[,1], sft$fitIndices[,5],
+     xlab="Soft Threshold (power)",ylab="Mean Connectivity", type="n",
+     main = paste("Mean connectivity"))
+text(sft$fitIndices[,1], sft$fitIndices[,5], labels=powers, cex=cex1,col="red")
+#选择beta值
+best_beta=sft$powerEstimate
+best_beta
+dev.off()
+
+
+# =======================================================
+####无尺度网络检验和可视化###############################
+# =======================================================
+
+
+# 获得临近矩阵：
+softPower <- sft$powerEstimate
+adjacency = adjacency(dataExpr, power = softPower);
+# 将临近矩阵转为 Tom 矩阵
+TOM = TOMsimilarity(adjacency);
+# 计算基因之间的相异度
+dissTOM = 1-TOM
+hierTOM = hclust(as.dist(dissTOM),method="average");
+
+#检验选定的β值下记忆网络是否逼近 scale free
+cor <- abs(WGCNA::cor( dataExpr,use = "p" ))^softPower
+# 基因少（<5000）的时候使用下面的代码：
+k <- as.vector(apply(cor,2,sum,na.rm=T))
+# 基因多的时候使用下面的代码：
+k <- softConnectivity(datE=dataExpr,power=softPower) 
+sizeGrWindow(10, 5)
+par(mfrow=c(1,2))
+hist(k)
+scaleFreePlot(k,main="Check Scale free topology\n")
+#可以看出k与p(k)成负相关(相关性系数0.85),
+#说明选择的β值能够建立基因无尺度网络。
+
+# =======================================================
+####构建共表达矩阵########################################
+# =======================================================
+
+
+# 一步法构建共表达矩阵
+
+net = blockwiseModules(dataExpr, power = sft$powerEstimate,
+                       maxBlockSize = 6000,TOMType = "unsigned", 
+                       minModuleSize = 30,reassignThreshold = 0,
+                       mergeCutHeight = 0.25,
+                       numericLabels = TRUE, pamRespectsDendro = FALSE,
+                       saveTOMs = TRUE,
+                       saveTOMFileBase = "AS-green-FPKM-TOM",
+                       verbose = 3)
+                       
+                       
+                       
+                       
+                       
+                       
+                       
+                       
+                       
+                       
+                       
+                       
+                       
+                       
+                       
+                       
+  # =======================================================
+####模块鉴定及相似模块合并###############################
+# =======================================================
+#模块鉴定
+table(net$colors) 
+#可以看总共有多少模块，每个模块的大小，
+#这里共有16个模块，从1-15每个模块的大小是递减的，
+#从2274-48，0表示这些基因不在所有模块内。
+
+#可视化
+# Convert labels to colors for plotting
+dynamicColors = labels2colors(net$colors)
+table(dynamicColors)
+
+# dynamicColors
+# black      blue     brown     green      grey   magenta      pink 
+# 64       179       129        76       113        40        57 
+# purple       red turquoise    yellow 
+# 34        68       285        91 
+# 
+
+# Plot the dendrogram and the module colors underneath
+plotDendroAndColors(net$dendrograms[[1]], dynamicColors[net$blockGenes[[1]]],
+                    "Module colors",
+                    dendroLabels = FALSE, hang = 0.03,
+                    addGuide = TRUE, guideHang = 0.05)
+
+
+### 计算邻接矩阵
+adjacency = adjacency(dataExpr, power = sft$powerEstimate)
+
+### 把邻接矩阵转换为拓扑重叠矩阵，以降低噪音和假相关，获得距离矩阵。
+TOM = TOMsimilarity(adjacency)
+dissTOM = 1-TOM
+
+### 层级聚类计算基因之间的距离树 
+geneTree = hclust(as.dist(dissTOM), method = "average")
+
+
+#将相关性系数大于0.7的模块合并掉，
+#即相异性系数小于0.3:(本次合并掉1个模块)
+MEDissThres = 0.1
+# 在聚类图中画出剪切线
+abline(h=MEDissThres, col = "red")
+# 合并模块：
+merge_modules = mergeCloseModules(dataExpr,
+                                  dynamicColors, 
+                                  cutHeight = MEDissThres, 
+                                  verbose = 3)
+# 合并后的颜色：
+mergedColors = merge_modules$colors;
+# 新模块的特征向量基因：
+mergedMEs = merge_modules$newMEs;
+
+
+
+
+pdf(file = '3.pdf', height = 8, width = 8)
+plotDendroAndColors(geneTree, cbind(dynamicColors, mergedColors),
+                    c("Dynamic Tree Cut", "Merged dynamic"),
+                    dendroLabels = FALSE, hang = 0.03,
+                    addGuide = TRUE, guideHang = 0.05)
+dev.off()
+
+
+
+
+# =======================================================
+####模块-性状相关性热图##################################
+# =======================================================
+
+
+moduleTraitCor_noFP <- cor(mergedMEs, datTraits, use = "p");
+moduleTraitPvalue_noFP = corPvalueStudent(moduleTraitCor_noFP, nSamples); 
+textMatrix_noFP <- paste(signif(moduleTraitCor_noFP, 2), 
+                         "\n(", signif(moduleTraitPvalue_noFP, 1), ")", 
+                         sep = ""); 
+
+
+pdf(file = '4.pdf', height = 8, width =10, onefile = FALSE)
+par(mfrow=c(2,2),mar=c(6,4,2,1),oma=c(4,3,2,1))
+labeledHeatmap(Matrix = moduleTraitCor_noFP, 
+               xLabels = names(datTraits), 
+               yLabels = names(mergedMEs), 
+               ySymbols = names(mergedMEs), 
+               colorLabels = FALSE, 
+               colors = blueWhiteRed(50), 
+               textMatrix = textMatrix_noFP,
+               setStdMargins = FALSE, 
+               cex.text = 0.65, 
+               zlim = c(-1,1), 
+               main = paste("Module-trait relationships")) 
+dev.off()
+# 
+# # =======================================================
+# ####挑选最佳模块（1）####################################
+# # =======================================================
+# 
+# #根据性状与模块特征向量基因的相关性及pvalue来挑选与性状相关的模块
+# cor_ADR <- signif(WGCNA::cor(datTraits,mergedMEs,
+#                              use="p",method="pearson"),5)
+# 
+# p.values <- corPvalueStudent(cor_ADR,nSamples=nrow(datTraits))
+# 
+# 
+# Freq_MS_max_cor <- which.max(abs(cor_ADR["OS.Time",
+#                                          -which(colnames(cor_ADR) == "MEgrey")]))
+# 
+# Freq_MS_max_cor
+# # MEmagenta 
+# # 12 
+# Freq_MS_max_p <- which.min(p.values["OS.Time",
+#                                     -which(colnames(p.values) == "MEgrey")])
+# 
+# Freq_MS_max_p
+# # MEmagenta 
+# # 12 
+
+# =======================================================
+####挑选最佳模块（2）####################################
+# =======================================================
+
+#根据基因网络显著性，
+#也就是性状与每个基因表达量相关性在各个模块的均值
+#作为该性状在该模块的显著性，
+#显著性最大的那个模块与该性状最相关：
+
+GS1 <- as.numeric(WGCNA::cor(datTraits[,'Subtype'],
+                             dataExpr,
+                             use="p",method="pearson"))
+# 显著性是绝对值：
+GeneSignificance <- abs(GS1)
+# 获得该性状在每个模块中的显著性：
+ModuleSignificance <- tapply(GeneSignificance,
+                             mergedColors,mean,na.rm=T)
+
+ModuleSignificance
+
+
+# black       blue      brown      green       grey    magenta 
+# 0.20657986 0.31047136 0.26234985 0.04391502 0.13844166 0.05787931 
+# pink     purple        red  turquoise     yellow 
+# 0.09515230 0.08780413 0.06962372 0.43819243 0.09208386 
+
+
+which.max(ModuleSignificance[names(ModuleSignificance)!='grey'])
+# turquoise 
+# 9 
+
+
+# =======================================================
+####提取指定模块的基因名#################################
+# =======================================================
+
+
+#提取指定模块的基因名
+# Select module
+module = "turquoise";
+# Select module probes
+probes = colnames(dataExpr) ## 我们例子里面的probe就是基因名
+inModule = (mergedColors==module);
+modProbes = probes[inModule];
+modProbes
+save(modProbes, file = 'turquoisegenes.Rdata')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# =======================================================
+################基因与性状相关性##########################
+# =======================================================
+
+# Define numbers of genes and samples
+nGenes = ncol(dataExpr);
+nSamples = nrow(dataExpr);
+# Recalculate MEs with color labels
+MEs0 = moduleEigengenes(dataExpr, mergedColors)$eigengenes
+MEs = orderMEs(MEs0)
+moduleTraitCor = cor(MEs, datTraits, use = "p");
+moduleTraitPvalue = corPvalueStudent(moduleTraitCor, nSamples);
+
+
+
+# Define variable weight containing the weight column of datTrait
+type = as.data.frame(datTraits$Subtype);
+names(type) = "Subtype"
+# names (colors) of the modules
+modNames = substring(names(MEs), 3)
+
+geneModuleMembership = as.data.frame(cor(dataExpr, MEs, use = "p"));
+MMPvalue = as.data.frame(corPvalueStudent(as.matrix(geneModuleMembership), nSamples));
+
+names(geneModuleMembership) = paste("MM", modNames, sep="");
+names(MMPvalue) = paste("p.MM", modNames, sep="");
+
+geneTraitSignificance = as.data.frame(cor(dataExpr, type, use = "p"));
+GSPvalue = as.data.frame(corPvalueStudent(as.matrix(geneTraitSignificance), nSamples));
+
+names(geneTraitSignificance) = paste("GS.", names(type), sep="");
+names(GSPvalue) = paste("p.GS.", names(type), sep="");
+
+
+module = "turquoise"
+column = match(module, modNames);
+moduleGenes = mergedColors==module;
+
+
+module_genes <- names(dataExpr)[mergedColors==module]
+
+
+
+sizeGrWindow(7, 7);
+par(mfrow = c(1,1));
+pdf(file = '5.pdf', height = 8, width =10, onefile = FALSE)
+verboseScatterplot(abs(geneModuleMembership[moduleGenes, column]),
+                   abs(geneTraitSignificance[moduleGenes, 1]),
+                   xlab = paste("Module Membership in", module, "module"),
+                   ylab = "Gene significance for Grade",
+                   main = paste("Module membership vs. gene significance\n"),
+                   cex.main = 1.2, cex.lab = 1.2, cex.axis = 1.2, col = module)
+
+dev.off()
+
+write.csv(geneTraitSignificance, file = 'geneTraitSignificance.csv')
+
+
+write.csv(module_genes, file = 'module_genes.csv')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# =======================================================
+################基因与性状相关性##########################
+# =======================================================
+
+# Define numbers of genes and samples
+nGenes = ncol(dataExpr);
+nSamples = nrow(dataExpr);
+# Recalculate MEs with color labels
+MEs0 = moduleEigengenes(dataExpr, mergedColors)$eigengenes
+MEs = orderMEs(MEs0)
+moduleTraitCor = cor(MEs, datTraits, use = "p");
+moduleTraitPvalue = corPvalueStudent(moduleTraitCor, nSamples);
+
+
+
+# Define variable weight containing the weight column of datTrait
+type = as.data.frame(datTraits$Subtype);
+names(type) = "Subtype"
+# names (colors) of the modules
+modNames = substring(names(MEs), 3)
+
+geneModuleMembership = as.data.frame(cor(dataExpr, MEs, use = "p"));
+MMPvalue = as.data.frame(corPvalueStudent(as.matrix(geneModuleMembership), nSamples));
+
+names(geneModuleMembership) = paste("MM", modNames, sep="");
+names(MMPvalue) = paste("p.MM", modNames, sep="");
+
+geneTraitSignificance = as.data.frame(cor(dataExpr, type, use = "p"));
+GSPvalue = as.data.frame(corPvalueStudent(as.matrix(geneTraitSignificance), nSamples));
+
+names(geneTraitSignificance) = paste("GS.", names(type), sep="");
+names(GSPvalue) = paste("p.GS.", names(type), sep="");
+
+
+module = "blue"
+column = match(module, modNames);
+moduleGenes = mergedColors==module;
+
+
+module_genes <- names(dataExpr)[mergedColors==module]
+
+
+
+sizeGrWindow(7, 7);
+par(mfrow = c(1,1));
+pdf(file = '6.pdf', height = 8, width =10, onefile = FALSE)
+verboseScatterplot(abs(geneModuleMembership[moduleGenes, column]),
+                   abs(geneTraitSignificance[moduleGenes, 1]),
+                   xlab = paste("Module Membership in", module, "module"),
+                   ylab = "Gene significance for Grade",
+                   main = paste("Module membership vs. gene significance\n"),
+                   cex.main = 1.2, cex.lab = 1.2, cex.axis = 1.2, col = module)
+
+dev.off()
+
+
+write.csv(geneTraitSignificance, file = 'blue_sig.csv')
+
+write.csv(module_genes, file = 'blue_genes.csv')
+
+
+
+
+
+
+
+# =======================================================
+################基因与性状相关性##########################
+# =======================================================
+
+# Define numbers of genes and samples
+nGenes = ncol(dataExpr);
+nSamples = nrow(dataExpr);
+# Recalculate MEs with color labels
+MEs0 = moduleEigengenes(dataExpr, mergedColors)$eigengenes
+MEs = orderMEs(MEs0)
+moduleTraitCor = cor(MEs, datTraits, use = "p");
+moduleTraitPvalue = corPvalueStudent(moduleTraitCor, nSamples);
+
+
+
+# Define variable weight containing the weight column of datTrait
+type = as.data.frame(datTraits$Subtype);
+names(type) = "Subtype"
+# names (colors) of the modules
+modNames = substring(names(MEs), 3)
+
+geneModuleMembership = as.data.frame(cor(dataExpr, MEs, use = "p"));
+MMPvalue = as.data.frame(corPvalueStudent(as.matrix(geneModuleMembership), nSamples));
+
+names(geneModuleMembership) = paste("MM", modNames, sep="");
+names(MMPvalue) = paste("p.MM", modNames, sep="");
+
+geneTraitSignificance = as.data.frame(cor(dataExpr, type, use = "p"));
+GSPvalue = as.data.frame(corPvalueStudent(as.matrix(geneTraitSignificance), nSamples));
+
+names(geneTraitSignificance) = paste("GS.", names(type), sep="");
+names(GSPvalue) = paste("p.GS.", names(type), sep="");
+
+
+module = "turquoise"
+column = match(module, modNames);
+moduleGenes = mergedColors==module;
+
+
+module_genes <- names(dataExpr)[mergedColors==module]
+
+
+
+sizeGrWindow(7, 7);
+par(mfrow = c(1,1));
+pdf(file = '5.pdf', height = 8, width =10, onefile = FALSE)
+verboseScatterplot(abs(geneModuleMembership[moduleGenes, column]),
+                   abs(geneTraitSignificance[moduleGenes, 1]),
+                   xlab = paste("Module Membership in", module, "module"),
+                   ylab = "Gene significance for Grade",
+                   main = paste("Module membership vs. gene significance\n"),
+                   cex.main = 1.2, cex.lab = 1.2, cex.axis = 1.2, col = module)
+
+dev.off()
+
+
+write.csv(geneTraitSignificance, file = 'turquoise_sig.csv')
+
+write.csv(module_genes, file = 'turquoise_genes.csv')
+
+
+
+
+
+
+
+
+                       
+                       
+                       
+                       
+                       
+                       
+                       
+                       
+                       
+                       
+                       
+                       
+                       
+                       
+                       
+
+
+
