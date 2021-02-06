@@ -1,0 +1,69 @@
+# ===============================================================
+
+
+#Code 2 fgsea
+
+
+
+# ===============================================================
+# load logFC and kegg data
+
+
+rm(list=ls())
+library(stringr)
+setwd('D:\\SCIwork\\F25\\step3')
+
+diff <- read.csv('edgerOut.csv', header = T, row.names = 1)
+
+diff$id <- rownames(diff)
+
+
+
+
+results.ord <- diff[ order(-diff[,"logFC"]), ]
+head(results.ord)
+
+ranks <- results.ord$logFC
+names(ranks) <- rownames(results.ord)
+head(ranks)
+
+
+
+
+
+gmt2list = function(file.path, ...)
+{
+  gmt = str_split(readLines(con = file(file.path)), "\t")
+  v.names = sapply(gmt, function(line){line[1]}, simplify = T)
+  gmt = lapply(gmt, function(line){line = line[-c(1:2)]; line = str_trim(line)})
+  names(gmt) = v.names
+  
+  return(gmt)
+}
+
+
+Pathways = gmt2list("c2.cp.kegg.v6.2.symbols.gmt")
+
+
+
+# =======================================================
+# analysis and save
+
+
+library(fgsea)
+
+
+fgseaRes <- fgsea(pathways = Pathways, 
+                  stats = ranks,
+                  minSize=15,
+                  maxSize=500,
+                  nperm=500)
+
+fgseaRes <- as.data.frame(fgseaRes)
+
+fgseaRes <- subset(fgseaRes, fgseaRes$padj < 0.05)
+
+
+
+library(data.table)
+fwrite(fgseaRes, file="fgseaRes.csv", sep=",", sep2=c("", " ", ""))
