@@ -1,0 +1,111 @@
+rm(list=ls())
+library(dplyr)
+library(tibble)
+library(tidyr)
+set.seed(1234)
+library(randomForest)
+options(stringsAsFactors = F)
+library(shiny)
+library(shinythemes)
+library("caret")
+
+# Define UI for application that draws a histogram
+ui <- fluidPage(
+  
+  theme = shinytheme("lumen"),
+  
+  titlePanel(
+    
+    title= h4(p(strong("ISPRF: Immune Subtype Prediction by machine learning (Random Forest) model "), style='color:#7F7F7F')
+              ,style="background-color:#F8F8F8;border-radius: 10px")),
+
+   # Sidebar with a slider input for number of bins 
+   sidebarLayout(
+      sidebarPanel(
+        textInput(inputId = "CTLA4", label = "CTLA4 Expression", width = '100%', value = ""),
+        textInput(inputId = "FOXP3", label = "FOXP3 Expression", width = '100%', value = ""),
+        textInput(inputId = "IFNG", label = "IFNG Expression",  width = '100%', value = ""),
+        textInput(inputId = "CD19", label = "CD19 Expression", width = '100%', value = ""),
+        actionButton("submit", label = "Submit")
+      ),
+
+      # Show a plot of the generated distribution
+      mainPanel(
+        
+        fluidRow( width=4,
+                  tags$img(src="tutorial.jpg",width="300px",height="200px")
+         ),
+        fluidRow( width=4,
+         textOutput("text1"))
+      )
+   )
+)
+
+# Define server logic required to draw a histogram
+server <- function(input, output) {
+
+  
+
+   
+   text_reactive <- eventReactive( input$submit, {
+     
+     load('rf_fit.Rdata')
+     dt <- read.csv('TCGA_train.csv', header = T)
+     dt$group1 <- paste0('subtype', dt$group1)
+     dt1 <- dt[1,]
+     dt <- rbind(dt1, dt)
+     
+     CTLA4_exp <- input$CTLA4; FOXP3_exp <- input$FOXP3; IFNG_exp <-  input$IFNG; CD19_exp <-  input$CD19
+     dt$CTLA4[1] <- CTLA4_exp;dt$FOXP3[1] <- FOXP3_exp;dt$IFNG[1]  <- IFNG_exp;dt$CD19[1] <- CD19_exp
+     
+     dt$group1 <- NULL
+     for (i in 1:dim(dt)[2]) {
+       dt[,i] <- ifelse( dt[,i] > median( dt[,i]), 1, 0)}
+
+     dt1 <- dt
+     for (i in 1:dim(dt)[2]) {
+       col_name1 <- paste0(names(dt)[i], '_low')
+       dt1$col_name1 <- dt[,i]
+       dt1$col_name1 <- ifelse(dt1$col_name1 == 0, 1,0)
+       dt1[paste0(names(dt)[i], '_low')] = dt1$col_name1
+       dt1$col_name1 <- NULL
+       
+       col_name2 <- paste0(names(dt)[i], '_high')
+       dt1$col_name2 <- dt[,i]
+       dt1$col_name2 <- ifelse(dt1$col_name2 == 1, 1,0)
+       dt1[paste0(names(dt)[i], '_high')] = dt1$col_name2
+       dt1$col_name2 <- NULL }
+     dt1 <- dt1[,-(1:dim(dt)[2])]
+     
+     
+     test <- dt1[1,]
+     predicted_subtype <- predict(rf_fit,test)
+     predicted_subtype <- as.character(predicted_subtype)
+     predicted_subtype 
+     
+   })
+   
+
+   output$text1 <- renderText({
+     
+     predicted_subtype <-  text_reactive()
+     
+     if( predicted_subtype == 'subtype1'  ){
+       
+       
+       Type <- "The immune subtype of current sample was predicted to be subtype1"
+       
+       
+     } else if (  predicted_subtype == 'subtype2' ) {
+       
+       Type <- "The immune subtype of current sample was predicted to be subtype2"
+       
+     } 
+     
+     Type 
+   })
+}
+
+# Run the application 
+shinyApp(ui = ui, server = server)
+
